@@ -86,7 +86,6 @@ def main():
     # -------------------------------------------------------
     nb_matches_parsed = 0
 
-    # Objectifs / kills/morts (team) => accumulés
     total_grubs   = 0
     total_drakes  = 0
     total_barons  = 0
@@ -120,15 +119,12 @@ def main():
         if not participants:
             continue
 
-        # 1) Identifier la TEAM ("100" ou "200") où se trouvent
-        #    nos joueurs. On récupère un max de noms (TEAM) parmi nos 5
-        #    participants => On prend la majorité
+        # 1) Identifier la TEAM ("100" ou "200") où se trouvent nos joueurs
         team_candidates = []
         for p in participants:
             player_name = p.get("NAME", "")
             if player_name in TEAM_PLAYERS:
-                # => On retient la TEAM
-                team_candidates.append(p.get("TEAM"))  # ex "100" ou "200"
+                team_candidates.append(p.get("TEAM"))  # "100" ou "200"
 
         if not team_candidates:
             # Pas de nos joueurs => on skip
@@ -137,7 +133,7 @@ def main():
         c = Counter(team_candidates)
         my_team = c.most_common(1)[0][0]  # "100" ou "200"
 
-        # 2) Cumuler les stats d'équipe (objectifs / kills / deaths / grubs)
+        # 2) Cumuler les stats d'équipe
         match_team_kills  = 0
         match_team_deaths = 0
         match_team_drakes = 0
@@ -164,8 +160,7 @@ def main():
         total_towers      += match_team_towers
         total_grubs       += match_team_grubs
 
-        # 3) Stats par joueur (si NAME in TEAM_PLAYERS)
-        #    Kills, Deaths, Assists, Gold, Damage, +1 game
+        # 3) Stats par joueur
         for p in participants:
             name = p.get("NAME", "")
             if name in data_players:
@@ -185,27 +180,24 @@ def main():
     st.write(f"**Nombre de parties effectivement parsées** : {nb_matches_parsed}")
 
     # -------------------------------------------------------
-    # Calculs de moyennes sur nb_matches_parsed
+    # Calculs de moyennes
     # -------------------------------------------------------
-    # Grubs moyen
     avg_grubs = total_grubs / nb_matches_parsed
-    # kills/morts totaux moyens
     avg_team_kills  = total_team_kills  / nb_matches_parsed
     avg_team_deaths = total_team_deaths / nb_matches_parsed
-    # objectifs moyens
     avg_drakes = total_drakes / nb_matches_parsed
     avg_barons = total_barons / nb_matches_parsed
     avg_herald = total_herald / nb_matches_parsed
     avg_towers = total_towers / nb_matches_parsed
 
     team_stats_df = pd.DataFrame([{
-        "Moy. Grubs":       round(avg_grubs,2),
-        "Moy. KillsTeam":   round(avg_team_kills,2),
-        "Moy. DeathsTeam":  round(avg_team_deaths,2),
-        "Moy. Drakes":      round(avg_drakes,2),
-        "Moy. Nashors":     round(avg_barons,2),
-        "Moy. Heralds":     round(avg_herald,2),
-        "Moy. Towers":      round(avg_towers,2)
+        "Moy. Grubs":       round(avg_grubs, 2),
+        "Moy. KillsTeam":   round(avg_team_kills, 2),
+        "Moy. DeathsTeam":  round(avg_team_deaths, 2),
+        "Moy. Drakes":      round(avg_drakes, 2),
+        "Moy. Nashors":     round(avg_barons, 2),
+        "Moy. Heralds":     round(avg_herald, 2),
+        "Moy. Towers":      round(avg_towers, 2)
     }])
 
     st.subheader("Statistiques moyennes (équipe)")
@@ -220,7 +212,7 @@ def main():
         if nb == 0:
             continue
 
-        # Remplacer le nom par le pseudo correspondant
+        # Remplacer le nom par le pseudo
         if name == "":
             displayed_name = "Nireo"
         elif name == "Peche le coquin":
@@ -232,7 +224,7 @@ def main():
         elif name == "Cheikh Sadri":
             displayed_name = "iench taric"
         else:
-            displayed_name = name  # fallback si jamais on en ajoute d'autres un jour
+            displayed_name = name
 
         avg_kills   = stats["Kills"]   / nb
         avg_deaths  = stats["Deaths"]  / nb
@@ -240,8 +232,7 @@ def main():
         avg_gold    = stats["Gold"]    / nb
         avg_damage  = stats["Damage"]  / nb
 
-        # Kill Participation => (Sum of (Kills+Assists)) / total_team_kills (global)
-        # On l'affiche en pourcentage
+        # Kill Participation
         if total_team_kills > 0:
             kp = round((stats["Kills"] + stats["Assists"]) / total_team_kills * 100, 1)
         else:
@@ -263,21 +254,39 @@ def main():
     st.dataframe(player_df, hide_index=True)
 
     # -------------------------------------------------------
-    # Graphique : Dégâts vs Gold (moyenne)
+    # Un scatter par joueur : Dégâts (Y) en fonction des Golds (X)
     # -------------------------------------------------------
+    st.subheader("Dégâts / Golds ")
+
     if not player_df.empty:
-        fig = px.scatter(
-            player_df,
-            x="AvgGold",
-            y="AvgDamage",
-            color="Joueur",
-            text="Joueur",
-            title="Dégâts en fonction des Golds (moyenne par joueur)"
-        )
-        fig.update_traces(textposition='top center')
-        st.plotly_chart(fig)
+        for _, row in player_df.iterrows():
+            joueur = row["Joueur"]
+            avg_gold = row["AvgGold"]
+            avg_damage = row["AvgDamage"]
+
+            # Scatter plot à 1 point
+            fig = px.scatter(
+                x=[avg_gold],      # un seul point en X
+                y=[avg_damage],    # un seul point en Y
+                text=[joueur],     # nom du joueur sur le point
+                title=f"{joueur} ",
+                labels={"x": "Gold moyen", "y": "Dégâts moyens"},
+            )
+            # Personnalisation de la forme et de l'affichage
+            fig.update_traces(
+                marker=dict(size=12, color="#636EFA"),
+                textposition='top center'
+            )
+            # Ajuster les ranges pour laisser un peu d'espace autour du point
+            fig.update_layout(
+                xaxis=dict(range=[0, max(avg_gold*1.1, 1)]),
+                yaxis=dict(range=[0, max(avg_damage*1.1, 1)]),
+                template="plotly_white"
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
     else:
-        st.write("Aucun joueur trouvé pour le graphique.")
+        st.write("Aucun joueur trouvé pour les graphiques individuels.")
 
 if __name__ == "__main__":
     main()
