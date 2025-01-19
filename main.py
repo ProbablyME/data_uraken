@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(layout="wide")
+
 import pandas as pd
 import json
 import os
@@ -97,6 +99,7 @@ def main():
     # Stats équipe (objectifs, kills, etc.)
     # -------------------------------------------------------
     nb_matches_parsed = 0
+    total_wins = 0  # Added for win rate
 
     total_drakes  = 0
     total_barons  = 0
@@ -117,7 +120,8 @@ def main():
             "Assists": 0,
             "Gold":    0,
             "Damage":  0,
-            "NbGames": 0
+            "NbGames": 0,
+            "KP":      0  # Added for kill participation
         }
         for name in TEAM_PLAYERS
     }
@@ -133,7 +137,6 @@ def main():
         "UTILITY": {"Gold": 0, "Damage": 0},
     }
 
-    # On garde l'existant : data_roles_games_count (même si on n'utilise pas forcément)
     data_roles_games_count = {
         "TOP": 0,
         "JUNGLE": 0,
@@ -161,12 +164,21 @@ def main():
                 team_candidates.append(p.get("TEAM"))
 
         if not team_candidates:
-            # Aucun de nos joueurs dans ce match => on skip
             continue
 
-        # On calcule les stats d'équipe pour la team majoritaire
         c = Counter(team_candidates)
         my_team = c.most_common(1)[0][0]  # ex: "100"
+
+        # Check if we won the game
+        team_win = False
+        for p in participants:
+            if p.get("TEAM") == my_team:
+                if p.get("WIN", "false").lower() == "win":
+                    team_win = True
+                break
+        
+        if team_win:
+            total_wins += 1
 
         match_team_kills  = 0
         match_team_deaths = 0
@@ -207,9 +219,8 @@ def main():
         for p in participants:
             name = p.get("NAME", "")
             if name not in data_players:
-                continue  # pas un de nos joueurs
+                continue
 
-            # Cumuler stats par joueur
             kills       = int(p.get("CHAMPIONS_KILLED", 0))
             deaths      = int(p.get("NUM_DEATHS", 0))
             assists     = int(p.get("ASSISTS", 0))
@@ -219,14 +230,20 @@ def main():
             gold_val = int(gold_str) if gold_str.isdigit() else 0
             dmg_val  = int(dmg_str)  if dmg_str.isdigit()  else 0
 
+            # Calculate kill participation for this game
+            if match_team_kills > 0:
+                kp = ((kills + assists) / match_team_kills) * 100
+            else:
+                kp = 0
+
             data_players[name]["Kills"]   += kills
             data_players[name]["Deaths"]  += deaths
             data_players[name]["Assists"] += assists
             data_players[name]["Gold"]    += gold_val
             data_players[name]["Damage"]  += dmg_val
             data_players[name]["NbGames"] += 1
+            data_players[name]["KP"]      += kp  # Add KP for averaging later
 
-            # Rôle
             role_raw = p.get("TEAM_POSITION", "") or p.get("INDIVIDUAL_POSITION", "")
             role_up  = role_raw.upper()  
             role_std = ROLE_MAPPING.get(role_up, None)
@@ -246,6 +263,7 @@ def main():
     # -------------------------------------------------------
     # Stats d'équipe => Moyennes
     # -------------------------------------------------------
+    win_rate = (total_wins / nb_matches_parsed) * 100 if nb_matches_parsed > 0 else 0
     avg_drakes  = total_drakes      / nb_matches_parsed
     avg_barons  = total_barons      / nb_matches_parsed
     avg_herald  = total_herald      / nb_matches_parsed
@@ -255,6 +273,7 @@ def main():
     avg_deaths  = total_team_deaths / nb_matches_parsed
 
     team_stats_df = pd.DataFrame([{
+        "Win Rate (%)":   round(win_rate,1),
         "Moy. Drakes":   round(avg_drakes,2),
         "Moy. Nashors":  round(avg_barons,2),
         "Moy. Heralds":  round(avg_herald,2),
@@ -268,8 +287,6 @@ def main():
 
     # -------------------------------------------------------
     # Stats par joueur => Moyennes
-    # On supprime la colonne AvgGold et on ajoute "GoldEfficiency(%)"
-    #    = (AvgDamage / AvgGold)*100 si AvgGold>0 sinon 0
     # -------------------------------------------------------
     player_rows = []
     for name, stats in data_players.items():
@@ -277,7 +294,6 @@ def main():
         if nb == 0:
             continue
 
-        # Mapping pour pseudo plus court
         if name == "":
             displayed_name = "Nireo"
         elif name == "Peche le coquin":
@@ -296,8 +312,8 @@ def main():
         avg_assists = stats["Assists"] / nb
         avg_gold    = stats["Gold"]    / nb
         avg_dmg     = stats["Damage"]  / nb
+        avg_kp      = stats["KP"]      / nb  # Average kill participation
 
-        # Gold Efficiency => (avg_dmg / avg_gold) * 100
         if avg_gold > 0:
             gold_eff = (avg_dmg / avg_gold) * 100
         else:
@@ -309,6 +325,7 @@ def main():
             "AvgKills":   round(avg_kills,1),
             "AvgDeaths":  round(avg_deaths,1),
             "AvgAssists": round(avg_assists,1),
+            "KP(%)":      round(avg_kp,1),
             "GoldEfficiency(%)": round(gold_eff,1)
         })
 
@@ -387,3 +404,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
