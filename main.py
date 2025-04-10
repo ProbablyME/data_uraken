@@ -15,7 +15,7 @@ import numpy as np
 
 # Configuration de la page
 st.set_page_config(
-    page_title="URAKEN Stats",
+    page_title="Ancient Ones Stats",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -238,7 +238,7 @@ def display_champion_stats(champion_data):
 # 2. Début de l'application Streamlit avec création des onglets
 # -------------------------------------------------------------
 def main():
-    st.title("Statistiques URAKEN")
+    st.title("Statistiques Ancient Ones")
 
     # Création des onglets
     tab1, tab2, tab3, tab4 = st.tabs(["Statistiques générales", "Champions", "Tournoi", "Drafts"])
