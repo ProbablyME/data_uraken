@@ -539,7 +539,7 @@ def main():
                     with col1:
                         st.markdown("#### Combat")
                         st.write(f"**K/D équipe :** {avg_kills:.1f} kills, {avg_deaths:.1f} morts")
-                        st.write(f"**First Blood participation :** {(total_first_blood_kills + total_first_blood_assists) / nb_matches_parsed * 100:.1f}%")
+                        # st.write(f"**First Blood participation :** {(total_first_blood_kills + total_first_blood_assists) / nb_matches_parsed * 100:.1f}%")
                         st.write(f"**Dégâts moyens par minute :** {total_team_damage / total_game_duration:.0f}")
                     
                     with col2:
@@ -562,7 +562,7 @@ def main():
                         avg_control_wards = total_control_wards / nb_matches_parsed
                         avg_wards_killed = total_wards_killed / nb_matches_parsed
                         st.write(f"**Wards de contrôle achetées :** {avg_control_wards:.1f}")
-                        st.write(f"**Wards ennemies détruites :** {avg_wards_killed:.1f}")
+                        # st.write(f"**Wards ennemies détruites :** {avg_wards_killed:.1f}")
 
                     # -----------------------------
                     # Stats par joueur => Moyennes avec visualisation améliorée
